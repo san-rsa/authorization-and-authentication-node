@@ -16,7 +16,7 @@ app.use(bodyParser.urlencoded({
 app.use(express.static("public"));
 
 //TODO
-mongoose.connect("process.env.DB", {useNewUrlparser: true});
+mongoose.connect(process.env.DB, {useNewUrlparser: true});
 
  const UserSchema = new mongoose.Schema ({
     email: String,
