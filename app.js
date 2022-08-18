@@ -6,7 +6,10 @@ const ejs = require("ejs");
 const mongoose = require('mongoose');
 const encrypt = require("mongoose-encryption");
 const md5 = require('md5');
+const bcrypt= require('bcrypt')
 const app = express();
+
+const salt = 10;
 
 app.set('view engine', 'ejs');
 
@@ -46,29 +49,55 @@ app.route("/login")
 
 .post(function(req, res) {
     const email = req.body.username;
-    const password = md5(req.body.password);
+    const password = req.body.password;
 
     console.log(email);
     console.log(password);
 
-    User.findOne({email: email}, function(err, user) {
-        if (err){
-            console.log(err);
-        } else {  
-            if (user){  console.log(user.password);
-                if (user.password === password){
-                    res.render('secrets');
-                    console.log(user);
-                  
-                  
-                } 
-            }
+    User.findOne({email: email}, function(err, foundUser){
+        if (err) {
+          console.log(err);
+        } else {
+          if (foundUser) {
+            console.log(foundUser);
+
+            bcrypt.compare(password, foundUser.password, function(err, result) {
+              if (result === true ) {
+                res.render("secrets");
+                console.log(err)
+                console.log(result);
+              } else{
+                console.log(err);
+                console.log(result);
+              }
+            });
+          }
         }
-    });
+      });
+    
 });
 
 
-
+// app.post("/login", function(req, res){
+//   const username = req.body.username;
+//    	  const password = req.body.password;
+  
+  
+//   User.findOne({email: username}, function(err, foundUser){
+   
+//         console.log(err);
+   
+//        if (foundUser) {
+//     bcrypt.compare(password, foundUser.password, function(err, result) {
+//     if (result === true) {
+//       res.render("secrets");
+//             } else {
+//                 console.log(err);
+//             }
+//           });
+//         }	  
+//         })
+//      });
 
 
 app.route('/register')
@@ -78,11 +107,14 @@ app.route('/register')
 })
 
 .post(function(req, res) {
-   const new_user = new User ({
-    email: req.body.username,
-    password:md5(req.body.password)
-   })
 
+    bcrypt.hash(req.body.username, salt, function(err, hash) {
+        // Store hash in your password DB.
+         const new_user = new User ({
+    email: req.body.username,
+    password: hash
+    
+   });
    console.log(new_user);
 
    new_user.save(function(err) {
@@ -93,6 +125,12 @@ app.route('/register')
     }
    })
 })
+    });
+    
+
+  
+
+   
 
 
 app.listen(3000, function() {
