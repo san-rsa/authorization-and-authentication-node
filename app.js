@@ -205,6 +205,7 @@ app.route('/logout')
 });   
 
 
-app.listen(3000, function() {
-  console.log("Server started on port 3000");
-});
+
+app.listen(process.env.PORT ||3000, function(){
+  console.log("you are running on port 3000");
+})
