@@ -40,7 +40,8 @@ mongoose.connect(process.env.DB, {useNewUrlparser: true});
  const UserSchema = new mongoose.Schema ({
     email: String,
     password: String,
-    googleId: String 
+    googleId: String,
+    secret: Array 
  })
 
 
@@ -82,7 +83,6 @@ function(accessToken, refreshToken, profile, cb) {
   });
 }
 ));
-console.log('url under callback ');
 
 
 app.get("/", function(req, res){
@@ -155,13 +155,45 @@ app.route('/register')
 app.route('/secrets')    
 
 .get(function(req, res) {
+
+  User.find({secret: {$ne: null}}, function(err, user) {
+    if (err) {
+      console.log(err);
+    } else {
+      if (user) {
+        res.render('secrets', {allS: user});
+      }
+    }
+  });
+
+})
+    
+
+app.route('/submit')    
+
+.get(function(req, res) {
   if (req.isAuthenticated()){
-    res.render('secrets')
+    res.render('submit')
   } else {
     res.redirect('/login')
   }
 })
-    
+
+
+.post(function(req, res){
+  const secret = req.body.secret;
+
+  User.findById(req.user.id, function(err, id) {
+    if (err) {
+      console.log(err);
+    } else {
+      id.secret = secret;
+      id.save(function(){
+        res.redirect('/secrets')
+      });
+    }
+  });
+})
 
   
 app.route('/logout')
