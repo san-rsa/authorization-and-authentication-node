@@ -4,19 +4,32 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require('mongoose');
-const encrypt = require("mongoose-encryption");
-const md5 = require('md5');
-const bcrypt= require('bcrypt')
+// const encrypt = require("mongoose-encryption"); 2
+// const md5 = require('md5'); 3
+// const bcrypt= require('bcrypt') 4
+const session = require('express-session');
+const passport = require('passport');
+const passportLM = require('passport-local-mongoose');
+
 const app = express();
 
-const salt = 10;
+
+
+
+// const salt = 10; 4
 
 app.set('view engine', 'ejs');
-
-app.use(bodyParser.urlencoded({
-  extended: true
-}));
+app.use(bodyParser.urlencoded({ extended: true}));
 app.use(express.static("public"));
+
+app.use(session({
+  secret: process.env.SECRET,
+  resave: false,
+  saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 //TODO
 mongoose.connect(process.env.DB, {useNewUrlparser: true});
@@ -29,8 +42,16 @@ mongoose.connect(process.env.DB, {useNewUrlparser: true});
 
 //  UserSchema.plugin(encrypt, {secret: process.env.SECRET, encryptedFields: ["password"]});
 
+UserSchema.plugin(passportLM);
+
 
  const User = mongoose.model("User",UserSchema)
+
+ passport.use(User.createStrategy());
+
+ passport.serializeUser(User.serializeUser());
+ passport.deserializeUser(User.deserializeUser());
+ 
 
 
 
@@ -48,56 +69,25 @@ app.route("/login")
 
 
 .post(function(req, res) {
-    const email = req.body.username;
-    const password = req.body.password;
+    
+  const user = new User({
+    username: req.body.username,
+    password: req.body.password
+  })
 
-    console.log(email);
-    console.log(password);
-
-    User.findOne({email: email}, function(err, foundUser){
-        if (err) {
-          console.log(err);
-        } else {
-          if (foundUser) {
-            console.log(foundUser);
-
-            bcrypt.compare(password, foundUser.password, function(err, result) {
-              if (result === true ) {
-                res.render("secrets");
-                console.log(err)
-                console.log(result);
-              } else{
-                console.log(err);
-                console.log(result);
-              }
-            });
-          }
-        }
-      });
+  req.login(user, function(err) {
+    if (err) {
+console.log(err);
+    } else {
+      passport.authenticate('local')(req, res, function() {
+        res.redirect('/secrets');
+    })
+}
+});
     
 });
 
 
-// app.post("/login", function(req, res){
-//   const username = req.body.username;
-//    	  const password = req.body.password;
-  
-  
-//   User.findOne({email: username}, function(err, foundUser){
-   
-//         console.log(err);
-   
-//        if (foundUser) {
-//     bcrypt.compare(password, foundUser.password, function(err, result) {
-//     if (result === true) {
-//       res.render("secrets");
-//             } else {
-//                 console.log(err);
-//             }
-//           });
-//         }	  
-//         })
-//      });
 
 
 app.route('/register')
@@ -108,29 +98,39 @@ app.route('/register')
 
 .post(function(req, res) {
 
-    bcrypt.hash(req.body.username, salt, function(err, hash) {
-        // Store hash in your password DB.
-         const new_user = new User ({
-    email: req.body.username,
-    password: hash
-    
-   });
-   console.log(new_user);
-
-   new_user.save(function(err) {
+  User.register({username: req.body.username}, req.body.password, function(err, user) {
     if (err) {
-        console.log(err);
+      console.log(err);
+      res.redirect('/register');
     } else {
-        res.render("secrets")
+      passport.authenticate('local')(req, res, function() {
+        res.redirect('/secrets');
+      })
     }
-   })
-})
+  })
+
     });
+
+
+app.route('/secrets')    
+
+.get(function(req, res) {
+  if (req.isAuthenticated()){
+    res.render('secrets')
+  } else {
+    res.redirect('/login')
+  }
+})
     
 
   
-
-   
+app.route('/logout')
+.get(function(req, res) {
+  req.logOut(function(err){
+    if(err){ return next(err)
+  }});
+  res.redirect("/");
+});   
 
 
 app.listen(3000, function() {
